@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #111118;
+    --border: #2a2a3a;
+    --accent: #00ffe0;
+    --accent2: #ff6b35;
+    --text: #e0e0f0;
+    --muted: #555570;
+    --glow: 0 0 20px rgba(0,255,224,0.3);
+    --glow2: 0 0 20px rgba(255,107,53,0.3);
+  }
+
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+  }
+
+  /* animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,224,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,224,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes gridMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
+  }
+
+  .calculator {
+    width: 340px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,224,0.05);
+    position: relative;
+    animation: fadeIn 0.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .calculator::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 20px; right: 20px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    border-radius: 2px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    text-transform: uppercase;
+  }
+  .header .subtitle {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  /* Display */
+  .display {
+    background: #07070d;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .display::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,255,224,0.02) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .display-expression {
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 16px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .display-result {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    word-break: break-all;
+  }
+
+  .display-result.accent { color: var(--accent); text-shadow: var(--glow); }
+  .display-result.error  { color: var(--accent2); text-shadow: var(--glow2); font-size: 16px; }
+
+  /* History badge */
+  .history-badge {
+    display: inline-block;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Operator buttons row */
+  .ops-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* Number grid */
+  .num-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* Bottom row: 0, ., = */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* Action row: AC, ± */
+  .action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Base button */
+  button {
+    font-family: 'Share Tech Mono', monospace;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 14px 10px;
+    transition: all 0.1s;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 1px;
+  }
+
+  button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  button:active::after { opacity: 0.07; }
+  button:active { transform: scale(0.96); }
+
+  /* Number buttons */
+  .btn-num {
+    background: #1a1a28;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-num:hover { background: #222235; border-color: #3a3a50; }
+
+  /* Operator buttons */
+  .btn-op {
+    background: rgba(0,255,224,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,255,224,0.2);
+    font-size: 18px;
+  }
+  .btn-op:hover { background: rgba(0,255,224,0.15); box-shadow: var(--glow); }
+  .btn-op.active {
+    background: var(--accent);
+    color: #000;
+    box-shadow: var(--glow);
+  }
+
+  /* Equals button */
+  .btn-eq {
+    background: var(--accent);
+    color: #000;
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 18px;
+    border: none;
+    box-shadow: var(--glow);
+  }
+  .btn-eq:hover { background: #00fff0; box-shadow: 0 0 30px rgba(0,255,224,0.5); }
+
+  /* Clear button */
+  .btn-clear {
+    background: rgba(255,107,53,0.1);
+    color: var(--accent2);
+    border: 1px solid rgba(255,107,53,0.25);
+  }
+  .btn-clear:hover { background: rgba(255,107,53,0.2); box-shadow: var(--glow2); }
+
+  /* Decimal */
+  .btn-dot {
+    background: #1a1a28;
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+
+  /* Separator line */
+  .sep {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 12px 0;
+  }
+
+  /* History panel */
+  .history {
+    margin-top: 16px;
+    max-height: 80px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .history-item {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(42,42,58,0.5);
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .history-item:hover { color: var(--text); }
+  .history-item .res { color: var(--accent); }
+  .history-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* Ripple animation on result */
+  @keyframes pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+  .pulse { animation: pulse 0.3s ease; }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div class="header">
+    <h1>Calcuator</h1>
+    <div class="subtitle">by your C logic</div>
+  </div>
+
+  <div class="display">
+    <div class="display-expression" id="expression">_</div>
+    <div class="display-result" id="result">0</div>
+  </div>
+
+  <!-- Operators — same as switch(operator) cases -->
+  <div class="ops-row">
+    <button class="btn-op" id="op-plus"  onclick="setOp('+')">+</button>
+    <button class="btn-op" id="op-minus" onclick="setOp('-')">−</button>
+    <button class="btn-op" id="op-mul"   onclick="setOp('*')">×</button>
+    <button class="btn-op" id="op-div"   onclick="setOp('/')">÷</button>
+  </div>
+
+  <!-- Numbers -->
+  <div class="num-grid">
+    <button class="btn-num" onclick="appendNum('7')">7</button>
+    <button class="btn-num" onclick="appendNum('8')">8</button>
+    <button class="btn-num" onclick="appendNum('9')">9</button>
+    <button class="btn-num" onclick="appendNum('4')">4</button>
+    <button class="btn-num" onclick="appendNum('5')">5</button>
+    <button class="btn-num" onclick="appendNum('6')">6</button>
+    <button class="btn-num" onclick="appendNum('1')">1</button>
+    <button class="btn-num" onclick="appendNum('2')">2</button>
+    <button class="btn-num" onclick="appendNum('3')">3</button>
+  </div>
+
+  <div class="bottom-row">
+    <button class="btn-num btn-dot" onclick="appendNum('.')">.</button>
+    <button class="btn-num" onclick="appendNum('0')">0</button>
+    <button class="btn-eq" onclick="calculate()">=</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="action-row">
+    <button class="btn-clear" onclick="clearAll()">AC</button>
+    <button class="btn-num"   onclick="backspace()">⌫</button>
+  </div>
+
+  <div class="history" id="history-panel" style="display:none">
+    <div class="history-label">History</div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<script>
+  // --- State (mirrors your C variables) ---
+  let n1 = '';          // first number
+  let n2 = '';          // second number
+  let operator = '';    // char operator
+  let enteringN2 = false;
+  let justCalculated = false;
+  let history = [];
+
+  function display(val, type = '') {
+    const el = document.getElementById('result');
+    el.className = 'display-result ' + type;
+    el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 300);
+    el.textContent = val;
+  }
+
+  function setExpression(txt) {
+    document.getElementById('expression').textContent = txt || '_';
+  }
+
+  // Highlight active operator button
+  function highlightOp(op) {
+    ['plus','minus','mul','div'].forEach(id => {
+      document.getElementById('op-' + id).classList.remove('active');
+    });
+    const map = {'+':'plus','-':'minus','*':'mul','/':'div'};
+    if (op && map[op]) document.getElementById('op-' + map[op]).classList.add('active');
+  }
+
+  function appendNum(ch) {
+    if (justCalculated) { clearAll(); justCalculated = false; }
+
+    if (!operator) {
+      // Building n1
+      if (ch === '.' && n1.includes('.')) return;
+      n1 += ch;
+      display(n1);
+      setExpression('');
+    } else {
+      // Building n2
+      enteringN2 = true;
+      if (ch === '.' && n2.includes('.')) return;
+      n2 += ch;
+      const opSym = {'+':`+`, '-':'−', '*':'×', '/':'÷'}[operator];
+      display(n2);
+      setExpression(n1 + ' ' + opSym + ' ...');
+    }
+  }
+
+  // Mirrors: scanf(" %c",&operator); and the switch statement
+  function setOp(op) {
+    if (n1 === '') return;
+    // If already have n1 and n2, calculate first (chaining)
+    if (n2 !== '') calculate(true);
+    operator = op;
+    enteringN2 = false;
+    n2 = '';
+    highlightOp(op);
+    const opSym = {'+':`+`, '-':'−', '*':'×', '/':'÷'}[op];
+    setExpression(n1 + ' ' + opSym);
+    justCalculated = false;
+  }
+
+  // Mirrors: the switch(operator) block
+  function calculate(chaining = false) {
+    if (n1 === '' || operator === '' || n2 === '') return;
+
+    const a = parseFloat(n1);
+    const b = parseFloat(n2);
+    let result;
+
+    // Same switch logic as your C code
+    switch (operator) {
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '*': result = a * b; break;
+      case '/':
+        if (b !== 0) {           // if(n2 != 0)
+          result = a / b;
+        } else {
+          // printf("Division by zero is not possible.\n");
+          display('Division by zero!', 'error');
+          setExpression(n1 + ' ÷ ' + n2 + ' =');
+          addHistory(n1, operator, n2, 'Error');
+          if (!chaining) { n1 = ''; n2 = ''; operator = ''; highlightOp(''); justCalculated = true; }
+          return;
+        }
+        break;
+      default:
+        display('Invalid op', 'error');  // default: printf("ENTER VALID OPERATOR")
+        return;
+    }
+
+    const formatted = parseFloat(result.toFixed(10)).toString();
+    const opSym = {'+':`+`, '-':'−', '*':'×', '/':'÷'}[operator];
+    setExpression(n1 + ' ' + opSym + ' ' + n2 + ' =');
+    addHistory(n1, operator, n2, formatted);
+
+    display(formatted, 'accent');
+
+    if (chaining) {
+      n1 = formatted; n2 = ''; operator = '';
+    } else {
+      n1 = formatted; n2 = ''; operator = '';
+      highlightOp('');
+      justCalculated = true;
+    }
+  }
+
+  // Mirrors: do { ... } while(choice=='y'||choice=='Y')
+  // In the app, the user just keeps using it — that's the loop!
+  function clearAll() {
+    n1 = ''; n2 = ''; operator = '';
+    enteringN2 = false; justCalculated = false;
+    display('0');
+    setExpression('');
+    highlightOp('');
+  }
+
+  function backspace() {
+    if (!operator) {
+      n1 = n1.slice(0, -1);
+      display(n1 || '0');
+    } else if (enteringN2) {
+      n2 = n2.slice(0, -1);
+      display(n2 || '0');
+    }
+  }
+
+  function addHistory(a, op, b, res) {
+    const opSym = {'+':`+`, '-':'−', '*':'×', '/':'÷'}[op];
+    history.unshift({ expr: `${a} ${opSym} ${b}`, res });
+    if (history.length > 5) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const panel = document.getElementById('history-panel');
+    const list  = document.getElementById('history-list');
+    panel.style.display = 'block';
+    list.innerHTML = history.map(h =>
+      `<div class="history-item"><span>${h.expr}</span><span class="res">= ${h.res}</span></div>`
+    ).join('');
+  }
+
+  // Keyboard support
+  document.addEventListener('keydown', e => {
+    if ('0123456789.'.includes(e.key)) appendNum(e.key);
+    else if (['+','-','*','/'].includes(e.key)) setOp(e.key);
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') backspace();
+    else if (e.key === 'Escape') clearAll();
+  });
+</script>
+</body>
+</html>
